@@ -4,7 +4,7 @@
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalties used for working with sodalabs blockchain.",
   "main": "js/index.js",
   "scripts": {
-    "test": "mocha --require esm test.mjs"
+    "test": "mocha --require esm js/test.mjs"
   },
   "repository": {
     "type": "git",

@@ -1,11 +1,11 @@
-import crypto from 'crypto';
+import forge from 'node-forge'
 import fs from 'fs';
 import ethereumjsUtil from 'ethereumjs-util';
-import { isValidAddress, hashPersonalMessage, toBuffer } from 'ethereumjs-util';
+import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
 import pkg from 'elliptic';
 const EC = pkg.ec;
 
-export const block_size = 16; // AES block size in bytes
+export const BLOCK_SIZE = 16; // AES block size in bytes
 export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
 export const funcSigSize = 4;
 export const ctSize = 32;
@@ -15,65 +15,62 @@ export const hexBase = 16;
 export function encrypt(key, plaintext) {
     
     // Ensure plaintext is smaller than 128 bits (16 bytes)
-    if (plaintext.length > block_size) {
+    if (plaintext.length > BLOCK_SIZE) {
         throw new RangeError("Plaintext size must be 128 bits or smaller.");
     }
 
     // Ensure key size is 128 bits (16 bytes)
-    if (key.length != block_size) {
+    if (key.length !== BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
     }
 
-    // Create a new AES cipher using the provided key
-    const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
-
     // Generate a random value 'r' of the same length as the block size
-    const r = crypto.randomBytes(block_size);
+    const r = forge.random.getBytesSync(BLOCK_SIZE)
 
     // Encrypt the random value 'r' using AES in ECB mode
-    const encryptedR = cipher.update(r);
+    const encryptedR = encryptNumber(r, key)
     
     // Pad the plaintext with zeros if it's smaller than the block size
-    const plaintext_padded = Buffer.concat([Buffer.alloc(block_size - plaintext.length), plaintext]);
+    const plaintext_padded = Buffer.concat([Buffer.alloc(BLOCK_SIZE - plaintext.length), plaintext]);
 
     // XOR the encrypted random value 'r' with the plaintext to obtain the ciphertext
     const ciphertext = Buffer.alloc(encryptedR.length);
     for (let i = 0; i < encryptedR.length; i++) {
         ciphertext[i] = encryptedR[i] ^ plaintext_padded[i];
     }
-    
-    return { ciphertext, r };
+
+    const uint8ArrayR = new Uint8Array(r.split('').map(c => c.charCodeAt(0)));
+
+    return { ciphertext, r: uint8ArrayR };
 }
 
 export function decrypt(key, r, ciphertext) {
 
-    if (ciphertext.length !== block_size) {
+    if (ciphertext.length !== BLOCK_SIZE) {
         throw new RangeError("Ciphertext size must be 128 bits.");
     }
 
     // Ensure key size is 128 bits (16 bytes)
-    if (key.length != block_size) {
+    if (key.length !== BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.");
     }
 
     // Ensure random size is 128 bits (16 bytes)
-    if (r.length != block_size) {
+    if (r.length !== BLOCK_SIZE) {
         throw new RangeError("Random size must be 128 bits.");
     }
 
-    // Create a new AES decipher using the provided key
-    const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
-
-    // Encrypt the random value 'r' using AES in ECB mode
-    const encryptedR = cipher.update(r);
+   // Get the encrypted random value 'r'
+    const encryptedR = encryptNumber(r, key)
 
     // XOR the encrypted random value 'r' with the ciphertext to obtain the plaintext
-    const plaintext = Buffer.alloc(encryptedR.length);
+    const plaintext = new Uint8Array(BLOCK_SIZE)
+
     for (let i = 0; i < encryptedR.length; i++) {
-        plaintext[i] = encryptedR[i] ^ ciphertext[i];
+        plaintext[i] = encryptedR[i] ^ ciphertext[i]
     }
 
-    return plaintext;
+    return plaintext
 }
 
 export function loadAesKey(filePath) {
@@ -84,7 +81,7 @@ export function loadAesKey(filePath) {
     const key = Buffer.from(hexKey, 'hex');
 
     // Ensure the key is the correct length
-    if (key.length !== block_size) {
+    if (key.length !== BLOCK_SIZE) {
         throw new RangeError(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
@@ -93,12 +90,12 @@ export function loadAesKey(filePath) {
 
 export function writeAesKey(filePath, key) {
     // Ensure the key is the correct length
-    if (key.length !== block_size) {
+    if (key.length !== BLOCK_SIZE) {
         throw new RangeError(`Invalid key length: ${key.length} bytes, must be 16 bytes`);
     }
 
     // Encode the key to hex string
-    const hexKey = key.toString('hex');
+    const hexKey = Buffer.from(key).toString('hex');
 
     // Write the hex-encoded key to the file
     fs.writeFileSync(filePath, hexKey, 'utf8');
@@ -106,9 +103,12 @@ export function writeAesKey(filePath, key) {
 
 export function generateAesKey() {
     // Generate a random 128-bit AES key
-    const key = crypto.randomBytes(block_size);
+    const key = forge.random.getBytesSync(BLOCK_SIZE)
 
-    return key;
+    // Convert the string of bytes to a Uint8Array
+    const uint8ArrayKey = new Uint8Array(key.split('').map(c => c.charCodeAt(0)));
+
+    return uint8ArrayKey;
 }
 
 export function generateECDSAPrivateKey(){
@@ -157,11 +157,11 @@ export function sign(message, key) {
 
     // Hash the concatenated message using Keccak-256
     const hash = ethereumjsUtil.keccak256(message);
-    
+
     // Sign the message
     let signature = ethereumjsUtil.ecsign(hash, key);
     signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to match the ecrecover of ethereum
-    
+
     // Convert r, s, and v components to bytes
     let rBytes = Buffer.from(signature.r);
     let sBytes = Buffer.from(signature.s);
@@ -185,7 +185,7 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     // Get the bytes of the sender, contract, and function signature
     const senderBytes = toBuffer(sender)
     const contractBytes = toBuffer(contract)
-    
+
     // Convert the plaintext to bytes
     const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
     plaintextBytes.writeBigUInt64BE(BigInt(plaintext)); // Write the uint64 value to the buffer as little-endian
@@ -203,45 +203,70 @@ export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, sig
     return { ctInt, signature };
 }
 
-export function generateRSAKeyPair() {
+export function generateRSAKeyPair(){
     // Generate a new RSA key pair
-    return crypto.generateKeyPairSync('rsa', {
-        modulusLength: 2048,
-        publicKeyEncoding: {
-            type: 'spki',
-            format: 'der' // Specify 'der' format for binary data
-        },
-        privateKeyEncoding: {
-            type: 'pkcs8',
-            format: 'der' // Specify 'der' format for binary data
-        }
+    const rsaKeyPair = forge.pki.rsa.generateKeyPair({bits: 2048})
+
+    // Convert keys to DER format
+    const privateKey = forge.asn1.toDer(forge.pki.privateKeyToAsn1(rsaKeyPair.privateKey)).data
+    const publicKey = forge.asn1.toDer(forge.pki.publicKeyToAsn1(rsaKeyPair.publicKey)).data
+
+    return {
+        privateKey: encodeString(privateKey),
+        publicKey: encodeString(publicKey)
+    }
+}
+
+export function encryptRSA(publicKeyUint8Array, plaintext) {
+    // Convert the Uint8Array to a binary string for forge
+    const binaryDerString = String.fromCharCode.apply(null, publicKeyUint8Array);
+
+    // Decode the binary DER string into an ASN.1 object
+    const asn1PublicKey = forge.asn1.fromDer(binaryDerString);
+
+    // Convert the ASN.1 object to an RSA public key
+    const forgePublicKey = forge.pki.publicKeyFromAsn1(asn1PublicKey);
+
+    // Encrypt the plaintext using RSA-OAEP with SHA-256 as the hash function
+    const encrypted = forgePublicKey.encrypt(plaintext, 'RSA-OAEP', {
+        md: forge.md.sha256.create()  // Use SHA-256 for OAEP padding
     });
+
+    // Convert the encrypted binary string to a Uint8Array
+    const encryptedUint8Array = new Uint8Array(forge.util.createBuffer(encrypted, 'raw').bytes().split('').map(c => c.charCodeAt(0)));
+
+    return encryptedUint8Array;
 }
 
-export function encryptRSA(publicKey, plaintext) {
-    // Load the public key in PEM format
-    let publicKeyPEM = publicKey.toString('base64');
-    publicKeyPEM = `-----BEGIN PUBLIC KEY-----\n${publicKeyPEM}\n-----END PUBLIC KEY-----`;
-    
-    // Encrypt the plaintext using RSA-OAEP
-    return crypto.publicEncrypt({
-        key: publicKeyPEM,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256'
-    }, plaintext);
-}
 
-export function decryptRSA(privateKey, ciphertext) {
-    // Load the private key in PEM format
-    let privateKeyPEM = privateKey.toString('base64');
-    privateKeyPEM = `-----BEGIN PRIVATE KEY-----\n${privateKeyPEM}\n-----END PRIVATE KEY-----`;
 
-    // Decrypt the ciphertext using RSA-OAEP
-    return crypto.privateDecrypt({
-        key: privateKeyPEM,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256'
-    }, ciphertext);
+export function decryptRSA(privateKeyUint8Array, ciphertext) {
+    // Convert privateKey from Uint8Array to PEM format
+    const privateKeyPEM = forge.pki.privateKeyToPem(
+        forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(forge.util.createBuffer(privateKeyUint8Array)))
+    );
+
+    // Decrypt using RSA-OAEP
+    const rsaPrivateKey = forge.pki.privateKeyFromPem(privateKeyPEM);
+
+    // If ciphertext is Uint8Array, convert it to a binary string for forge
+    let binaryCiphertext;
+    if (ciphertext instanceof Uint8Array) {
+        binaryCiphertext = String.fromCharCode.apply(null, ciphertext);
+    } else if (typeof ciphertext === 'string') {
+        // If it's already a hex string, convert hex to bytes
+        binaryCiphertext = forge.util.hexToBytes(ciphertext);
+    } else {
+        throw new Error("Invalid ciphertext format");
+    }
+
+    // Decrypt the ciphertext using RSA-OAEP with SHA-256
+    const decrypted = rsaPrivateKey.decrypt(binaryCiphertext, 'RSA-OAEP', {
+        md: forge.md.sha256.create()
+    });
+
+    // Convert the decrypted string to a Uint8Array
+    return new Uint8Array(decrypted.split('').map(c => c.charCodeAt(0)));
 }
 
 export function getFuncSig(functionSig) {
@@ -252,4 +277,30 @@ export function getFuncSig(functionSig) {
     const hash = ethereumjsUtil.keccak256(functionBytes);
 
     return hash.subarray(0, 4);
+}
+
+
+export function encodeString(str) {
+    return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(hexBase), hexBase))])
+}
+
+
+export function encryptNumber(r, key) {
+    // Ensure key size is 128 bits (16 bytes)
+    if (key.length != BLOCK_SIZE) {
+        throw new RangeError("Key size must be 128 bits.")
+    }
+
+    // Create a new AES cipher using the provided key
+    const cipher = forge.cipher.createCipher('AES-ECB', forge.util.createBuffer(key))
+
+    // Encrypt the random value 'r' using AES in ECB mode
+    cipher.start()
+    cipher.update(forge.util.createBuffer(r))
+    cipher.finish()
+
+    // Get the encrypted random value 'r' as a Buffer and ensure it's exactly 16 bytes
+    const encryptedR = encodeString(cipher.output.data).slice(0, BLOCK_SIZE)
+
+    return encryptedR
 }

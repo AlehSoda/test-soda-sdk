@@ -1,6 +1,15 @@
 import { assert } from 'chai';
-import { encrypt, decrypt, loadAesKey, writeAesKey, generateAesKey, signIT, generateRSAKeyPair, encryptRSA, decryptRSA, getFuncSig, prepareIT, generateECDSAPrivateKey } from './crypto.js';
-import { block_size, addressSize, funcSigSize, hexBase } from './crypto.js';
+import {
+    decrypt, decryptRSA,
+    encrypt, encryptRSA,
+    generateAesKey,
+    generateECDSAPrivateKey, generateRSAKeyPair,
+    getFuncSig, loadAesKey,
+    prepareIT,
+    signIT,
+    writeAesKey
+} from './crypto.js';
+import { BLOCK_SIZE, addressSize, funcSigSize, hexBase } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -20,6 +29,13 @@ function extractSignatureComponents(signatureBytes) {
     return { rBytes, sBytes, vByte };
 }
 
+function uint8ArrayToBigInt(uint8Array) {
+    let value = BigInt(0);
+    for (let i = 0; i < uint8Array.length; i++) {
+        value = (value << 8n) | BigInt(uint8Array[i]);
+    }
+    return value;
+}
 
 describe('Crypto Tests', () => {
 
@@ -34,16 +50,16 @@ describe('Crypto Tests', () => {
         const key = generateAesKey();
 
         const { ciphertext, r } = encrypt(key, plaintextBuffer);
+
         const decryptedBuffer = decrypt(key, r, ciphertext);
 
         // Write Buffer to file to later check in Go
         fs.writeFileSync("test_jsEncryption.txt", key.toString('hex') + "\n" + ciphertext.toString('hex') + "\n" + r.toString('hex'));
 
-        const rightBits = decryptedBuffer.subarray(decryptedBuffer.length - 4, decryptedBuffer.length);
-        const decryptedInteger = rightBits.readInt32BE();
+        const decryptedInteger =  uint8ArrayToBigInt(decryptedBuffer)
 
         // Assert
-        assert.strictEqual(decryptedInteger, plaintextInteger);
+        assert.strictEqual(decryptedInteger, BigInt(plaintextInteger));
     });
 
     // Test case for load and write AES key
@@ -82,7 +98,7 @@ describe('Crypto Tests', () => {
         // Arrange
         const key = generateAesKey();
         const ciphertext = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bits
-        const r = Buffer.alloc(block_size);
+        const r = Buffer.alloc(BLOCK_SIZE);
 
         // Act and Assert
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
@@ -93,7 +109,7 @@ describe('Crypto Tests', () => {
         // Arrange
         const key = generateAesKey();
         const r = Buffer.from([0x01, 0x02, 0x03]); // Smaller than 128 bits
-        const ciphertext = Buffer.alloc(block_size);
+        const ciphertext = Buffer.alloc(BLOCK_SIZE);
 
         // Act and Assert
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
@@ -109,12 +125,12 @@ describe('Crypto Tests', () => {
         assert.throws(() => writeAesKey('key.txt', key), RangeError);
 
         // Test invalid key size when encrypting
-        const plaintextBuffer = Buffer.alloc(block_size);
+        const plaintextBuffer = Buffer.alloc(BLOCK_SIZE);
         assert.throws(() => encrypt(key, plaintextBuffer), RangeError);
 
         // Test invalid key size when decrypting
-        const ciphertext = Buffer.alloc(block_size);
-        const r = Buffer.alloc(block_size);
+        const ciphertext = Buffer.alloc(BLOCK_SIZE);
+        const r = Buffer.alloc(BLOCK_SIZE);
         assert.throws(() => decrypt(key, r, ciphertext), RangeError);
     });
 
@@ -262,7 +278,7 @@ describe('Crypto Tests', () => {
         fs.writeFileSync("test_jsIT.txt", ctHex + "\n" + signature.toString('hex'));
 
         // Decrypt the ct and check the decrypted value is equal to the plaintext
-        const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(block_size, ctBuffer.length), ctBuffer.subarray(0, block_size));
+        const decryptedBuffer = decrypt(userKey, ctBuffer.subarray(BLOCK_SIZE, ctBuffer.length), ctBuffer.subarray(0, BLOCK_SIZE));
 
         // Convert the plaintext to bytes
         const hexString = plaintext.toString(16);
