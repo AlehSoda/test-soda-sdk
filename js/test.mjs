@@ -4,12 +4,14 @@ import {
     encrypt, encryptRSA,
     generateAesKey,
     generateECDSAPrivateKey, generateRSAKeyPair,
-    getFuncSig, loadAesKey,
+    getFuncSig,
     prepareIT,
-    signIT,
-    writeAesKey
+    signIT
 } from './crypto.js';
-import { BLOCK_SIZE, addressSize, funcSigSize, hexBase } from './crypto.js';
+
+import { writeAesKey, loadAesKey } from './utils.js';
+
+import { BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE, HEX_BASE } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
@@ -138,9 +140,9 @@ describe('Crypto Tests', () => {
     it('should sign and verify the signature', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const sender = crypto.randomBytes(addressSize);
-        const addr = crypto.randomBytes(addressSize);
-        const funcSig = crypto.randomBytes(funcSigSize);
+        const sender = crypto.randomBytes(ADDRESS_SIZE);
+        const addr = crypto.randomBytes(ADDRESS_SIZE);
+        const funcSig = crypto.randomBytes(FUNC_SIG_SIZE);
         let key = generateECDSAPrivateKey();
         
         // Create a ciphertext
@@ -189,9 +191,9 @@ describe('Crypto Tests', () => {
     it('should sign and verify the EIP191 signature', () => {
         // Arrange
         // Simulate the generation of random bytes
-        const sender = crypto.randomBytes(addressSize);
-        const addr = crypto.randomBytes(addressSize);
-        const funcSig = crypto.randomBytes(funcSigSize);
+        const sender = crypto.randomBytes(ADDRESS_SIZE);
+        const addr = crypto.randomBytes(ADDRESS_SIZE);
+        const funcSig = crypto.randomBytes(FUNC_SIG_SIZE);
         let key = generateECDSAPrivateKey();
 
         // Create a ciphertext
@@ -270,7 +272,7 @@ describe('Crypto Tests', () => {
         const hash_func = getFuncSig(funcSig);
         const {ctInt, signature} = prepareIT(plaintext, userKey, sender, contract, hash_func, signingKey);
 
-        const ctHex = ctInt.toString(hexBase);
+        const ctHex = ctInt.toString(HEX_BASE);
         // Create a Buffer to hold the bytes
         const ctBuffer = Buffer.from(ctHex, 'hex'); 
 

@@ -1,16 +1,14 @@
 import forge from 'node-forge'
+import {ethers} from "ethers";
 
-// import ethereumjsUtil from 'ethereumjs-util';
-// import { hashPersonalMessage, toBuffer } from 'ethereumjs-util';
-import pkg from 'elliptic';
-const EC = pkg.ec;
+
 
 export const BLOCK_SIZE = 16; // AES block size in bytes
-export const addressSize = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
-export const funcSigSize = 4;
-export const ctSize = 32;
-export const keySize = 32;
-export const hexBase = 16;
+export const ADDRESS_SIZE = 20; // 160-bit is the output of the Keccak-256 algorithm on the sender/contract address
+export const FUNC_SIG_SIZE = 4;
+export const CT_SIZE = 32;
+export const KEY_SIZE = 32;
+export const HEX_BASE = 16;
 
 export function encrypt(key, plaintext) {
     
@@ -83,35 +81,35 @@ export function generateAesKey() {
     return uint8ArrayKey;
 }
 
-export function generateECDSAPrivateKey(){
-    // Create an elliptic curve instance using secp256k1 curve
-    const ec = new EC('secp256k1');
+export function generateECDSAPrivateKey() {
+    // Generate a random wallet (this includes an ECDSA private key using secp256k1)
+    const wallet = ethers.Wallet.createRandom();
 
-    // Generate a key pair
-    const keyPair = ec.genKeyPair();
+    // Get the private key as a 32-byte hexadecimal string (0x-prefixed)
+    const privateKeyHex = wallet.privateKey;
 
-    // Get the raw bytes of the private key
-    return keyPair.getPrivate().toArrayLike(Buffer, 'be', 32);
-
+    // Convert the private key hex string to a Buffer for a similar return type
+    // Remove the "0x" prefix
+    return Buffer.from(privateKeyHex.slice(2), 'hex');
 }
 
 export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     // Ensure all input sizes are the correct length
-    if (sender.length !== addressSize) {
-        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${addressSize} bytes`);
+    if (sender.length !== ADDRESS_SIZE) {
+        throw new RangeError(`Invalid sender address length: ${sender.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
-    if (addr.length !== addressSize) {
-        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${addressSize} bytes`);
+    if (addr.length !== ADDRESS_SIZE) {
+        throw new RangeError(`Invalid contract address length: ${addr.length} bytes, must be ${ADDRESS_SIZE} bytes`);
     }
-    if (funcSig.length !== funcSigSize) {
-        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${funcSigSize} bytes`);
+    if (funcSig.length !== FUNC_SIG_SIZE) {
+        throw new RangeError(`Invalid signature size: ${funcSig.length} bytes, must be ${FUNC_SIG_SIZE} bytes`);
     }
-    if (ct.length !== ctSize) {
-        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${ctSize} bytes`);
+    if (ct.length !== CT_SIZE) {
+        throw new RangeError(`Invalid ct length: ${ct.length} bytes, must be ${CT_SIZE} bytes`);
     }
     // Ensure the key is the correct length
-    if (key.length !== keySize) {
-        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${keySize} bytes`);
+    if (key.length !== KEY_SIZE) {
+        throw new RangeError(`Invalid key length: ${key.length} bytes, must be ${KEY_SIZE} bytes`);
     }
 
     // Create the message to be signed by concatenating all inputs
@@ -125,55 +123,90 @@ export function signIT(sender, addr, funcSig, ct, key, eip191=false) {
     }
 }
 
-// export function sign(message, key) {
-//
-//     // Hash the concatenated message using Keccak-256
-//     const hash = ethereumjsUtil.keccak256(message);
-//
-//     // Sign the message
-//     let signature = ethereumjsUtil.ecsign(hash, key);
-//     signature.v = (signature.v - 27) // Convert v from 27-28 to 0-1 in order to match the ecrecover of ethereum
-//
-//     // Convert r, s, and v components to bytes
-//     let rBytes = Buffer.from(signature.r);
-//     let sBytes = Buffer.from(signature.s);
-//     let vByte = Buffer.from([signature.v]);
-//
-//     // Concatenate r, s, and v bytes
-//     return Buffer.concat([rBytes, sBytes, vByte]);
-// }
-//
-// export function signEIP191(message, key) {
-//     // Hash the concatenated message using Keccak-256
-//     const hash = hashPersonalMessage(message);
-//     // Sign the message
-//     const signature =  ethereumjsUtil.ecsign(hash, key);
-//     // Convert r, s, and v components to bytes
-//     return Buffer.concat([Buffer.from(signature.r), Buffer.from(signature.s), Buffer.from([signature.v])]);
-// }
+export function sign(message, key) {
 
-// export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
-//
-//     // Get the bytes of the sender, contract, and function signature
-//     const senderBytes = toBuffer(sender)
-//     const contractBytes = toBuffer(contract)
-//
-//     // Convert the plaintext to bytes
-//     const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
-//     plaintextBytes.writeBigUInt64BE(BigInt(plaintext)); // Write the uint64 value to the buffer as little-endian
-//
-//     // Encrypt the plaintext using AES key
-//     const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
-//     let ct = Buffer.concat([ciphertext, r]);
-//
-//     // Sign the message
-//     const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
-//
-//     // Convert the ciphertext to BigInt
-//     const ctInt = BigInt('0x' + ct.toString('hex'));
-//
-//     return { ctInt, signature };
-// }
+    // Hash the concatenated message using Keccak-256
+    const hash = ethers.keccak256(message);
+
+    // Sign the message
+    const signingKey = new ethers.SigningKey(key);
+    const signature = signingKey.sign(hash);
+
+    // Concatenate r, s, and v bytes
+    return Buffer.concat([ethers.getBytes(signature.r), ethers.getBytes(signature.s), ethers.getBytes(`0x0${signature.v - 27}`)]);
+}
+
+export function signEIP191(message, key) {
+    // Hash the concatenated message using Keccak-256
+    const hash = ethers.hashMessage(message);
+    // Sign the message
+    const signingKey = new ethers.SigningKey(key);
+    const signature = signingKey.sign(hash);
+    // Convert r, s, and v components to bytes
+    return Buffer.concat([ethers.getBytes(signature.r), ethers.getBytes(signature.s), ethers.getBytes(`0x0${signature.v - 27}`)]);
+}
+
+export function prepareMessage(plaintext, signerAddress, aesKey, contractAddress, functionSelector) {
+  // Validate signerAddress (Ethereum address)
+  if (!ethers.isAddress(signerAddress)) {
+    throw new TypeError("Invalid signer address");
+  }
+
+  // Validate aesKey (32 bytes as hex string)
+  if (typeof aesKey !== "string" || aesKey.length != 32) {
+    throw new TypeError("Invalid AES key length. Expected 32 bytes.");
+  }
+
+  // Validate contractAddress (Ethereum address)
+  if (typeof contractAddress !== "string" || !ethers.isAddress(signerAddress)) {
+    throw new TypeError("Invalid contract address");
+  }
+
+  // Validate functionSelector (4 bytes as hex string)
+  if (typeof functionSelector !== "string" || functionSelector.length !== 10 || !functionSelector.startsWith('0x')) {
+    throw new TypeError("Invalid function selector");
+  }
+
+  // Convert the plaintext to bytes
+  const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
+  plaintextBytes.writeBigUInt64BE(plaintext); // Write the uint64 value to the buffer as little-endian
+
+  // Encrypt the plaintext using AES key
+  const {ciphertext, r} = encryptAES(plaintextBytes.toString("hex"), aesKey);
+  const ct = Buffer.concat([ciphertext, r]);
+
+  const message = ethers.solidityPacked(
+    ["address", "address", "bytes4", "uint256"],
+    [signerAddress, contractAddress, functionSelector, BigInt("0x" + ct.toString("hex"))],
+  );
+  // Convert the ciphertext to BigInt
+  const encryptedInt = BigInt("0x" + ct.toString("hex"));
+
+  return {encryptedInt, messageHash: message}
+}
+
+export function prepareIT(plaintext, userAesKey, sender, contract, hashFunc, signingKey, eip191=false) {
+
+    // Get the bytes of the sender, contract, and function signature
+    const senderBytes = Buffer.from(sender.toBuffer())
+    const contractBytes = Buffer.from(contract.toBuffer())
+
+    // Convert the plaintext to bytes
+    const plaintextBytes = Buffer.alloc(8); // Allocate a buffer of size 8 bytes
+    plaintextBytes.writeBigUInt64BE(BigInt(plaintext)); // Write the uint64 value to the buffer as little-endian
+
+    // Encrypt the plaintext using AES key
+    const { ciphertext, r } = encrypt(userAesKey, plaintextBytes);
+    let ct = Buffer.concat([ciphertext, r]);
+
+    // Sign the message
+    const signature = signIT(senderBytes, contractBytes, hashFunc, ct, signingKey, eip191);
+
+    // Convert the ciphertext to BigInt
+    const ctInt = BigInt('0x' + ct.toString('hex'));
+
+    return { ctInt, signature };
+}
 
 export function generateRSAKeyPair(){
     // Generate a new RSA key pair
@@ -205,12 +238,8 @@ export function encryptRSA(publicKeyUint8Array, plaintext) {
     });
 
     // Convert the encrypted binary string to a Uint8Array
-    const encryptedUint8Array = new Uint8Array(forge.util.createBuffer(encrypted, 'raw').bytes().split('').map(c => c.charCodeAt(0)));
-
-    return encryptedUint8Array;
+    return new Uint8Array(forge.util.createBuffer(encrypted, 'raw').bytes().split('').map(c => c.charCodeAt(0)));
 }
-
-
 
 export function decryptRSA(privateKeyUint8Array, ciphertext) {
     // Convert privateKey from Uint8Array to PEM format
@@ -241,25 +270,20 @@ export function decryptRSA(privateKeyUint8Array, ciphertext) {
     return new Uint8Array(decrypted.split('').map(c => c.charCodeAt(0)));
 }
 
-// export function getFuncSig(functionSig) {
-//     // Encode the string to a Buffer
-//     const functionBytes = Buffer.from(functionSig, "utf8");
-//
-//     // Hash the function signature using Keccak-256
-//     const hash = ethereumjsUtil.keccak256(functionBytes);
-//
-//     return hash.subarray(0, 4);
-// }
+export function getFuncSig(functionSig) {
+    const functionSelector = ethers.id(functionSig).slice(0, 10);
+    return Buffer.from(functionSelector.slice(2, 10), 'hex')
+}
 
 
 export function encodeString(str) {
-    return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(hexBase), hexBase))])
+    return new Uint8Array([...str.split('').map((char) => parseInt(char.codePointAt(0)?.toString(HEX_BASE), HEX_BASE))])
 }
 
 
 export function encryptNumber(r, key) {
     // Ensure key size is 128 bits (16 bytes)
-    if (key.length != BLOCK_SIZE) {
+    if (key.length !== BLOCK_SIZE) {
         throw new RangeError("Key size must be 128 bits.")
     }
 
@@ -272,7 +296,6 @@ export function encryptNumber(r, key) {
     cipher.finish()
 
     // Get the encrypted random value 'r' as a Buffer and ensure it's exactly 16 bytes
-    const encryptedR = encodeString(cipher.output.data).slice(0, BLOCK_SIZE)
-
-    return encryptedR
+    return encodeString(cipher.output.data).slice(0, BLOCK_SIZE)
 }
+

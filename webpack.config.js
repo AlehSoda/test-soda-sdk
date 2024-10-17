@@ -3,7 +3,7 @@ import path from 'path';
 
 // Webpack configuration using export default for ES modules
 export default {
-  entry: './js/index.js',  // Entry point of your SDK
+  entry: './js/index-browser.js',  // Entry point of your SDK
   output: {
     filename: 'soda-js-sdk.umd.js',  // Output UMD bundle
     path: path.resolve('dist'),  // Output directory
