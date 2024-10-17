@@ -1,0 +1,4 @@
+pycryptodome>=3.10.0
+eth-keys>=0.3.3
+cryptography>=3.4.7
+web3>=5.0.0,<6.0.0
