@@ -37,7 +37,7 @@ jobs:
           npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$)" test.mjs
 
       - name: Python tests
-        working-directory: ./python
+        working-directory: ./python/soda_python_sdk
         run: |
           python3 -m unittest -v test.py -k "TestMpcHelper"
 
@@ -56,7 +56,7 @@ jobs:
           npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.mjs
 
       - name: Python decrypt test
-        working-directory: ./python
+        working-directory: ./python/soda_python_sdk
         run: |
           python3 -m unittest -v test.py -k "TestDecrypt"
 

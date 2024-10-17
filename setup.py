@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='soda-python-sdk',
-    version='0.1.2',
+    version='0.1.5',
     packages=find_packages(where='python'),  # Look for packages in the 'python' directory
     package_dir={'': 'python'},  # Maps the root package to the 'python' directory
     description='This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.',

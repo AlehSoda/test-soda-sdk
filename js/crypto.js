@@ -39,7 +39,7 @@ export function encrypt(key, plaintext) {
 
     const uint8ArrayR = new Uint8Array(r.split('').map(c => c.charCodeAt(0)));
 
-    return { ciphertext, r: uint8ArrayR };
+    return { ciphertext, r: Buffer.from(uint8ArrayR) };
 }
 
 export function decrypt(key, r, ciphertext) {
@@ -78,7 +78,7 @@ export function generateAesKey() {
     // Convert the string of bytes to a Uint8Array
     const uint8ArrayKey = new Uint8Array(key.split('').map(c => c.charCodeAt(0)));
 
-    return uint8ArrayKey;
+    return Buffer.from(uint8ArrayKey);
 }
 
 export function generateECDSAPrivateKey() {
@@ -217,8 +217,8 @@ export function generateRSAKeyPair(){
     const publicKey = forge.asn1.toDer(forge.pki.publicKeyToAsn1(rsaKeyPair.publicKey)).data
 
     return {
-        privateKey: encodeString(privateKey),
-        publicKey: encodeString(publicKey)
+        privateKey: Buffer.from(encodeString(privateKey)),
+        publicKey: Buffer.from(encodeString(publicKey))
     }
 }
 

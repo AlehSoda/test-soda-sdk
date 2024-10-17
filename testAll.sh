@@ -11,9 +11,9 @@ npx mocha --require esm --grep "^(?!.*should decrypt a message using RSA scheme$
 cd ..
 
 print_blue "Running python tests..."
-cd python
+cd python/soda_python_sdk || exit
 python3 -m unittest -v test.py -k "TestMpcHelper"
-cd ..
+cd ../..
 
 print_blue "Running golang tests..."
 cd golang_cli
@@ -27,6 +27,6 @@ npx mocha --require esm --grep "should decrypt a message using RSA scheme" test.
 cd ..
 
 print_blue "Running python decrypt test..."
-cd python
+cd python/soda_python_sdk || exit
 python3 -m unittest -v test.py -k "TestDecrypt"
-cd ..
+cd ../..
