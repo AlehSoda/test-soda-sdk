@@ -1,14 +1,12 @@
 {
   "name": "soda-js-sdk",
-  "version": "1.0.3",
+  "version": "1.0.12",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
+  "main": "dist/index.js",
+  "module": "js/index.mjs",
   "types": "js/soda-sdk.d.ts",
   "scripts": {
-    "build:cjs": "webpack --config webpack.cjs.config.cjs",
-    "build:esm": "webpack --config webpack.esm.config.cjs",
-    "build": "npm run build:cjs && npm run build:esm",
+    "build": "webpack",
     "test": "mocha --require esm js/test.mjs"
   },
   "repository": {
