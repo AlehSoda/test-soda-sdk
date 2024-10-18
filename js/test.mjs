@@ -5,7 +5,7 @@ import {
     generateAesKey,
     generateECDSAPrivateKey, generateRSAKeyPair,
     getFuncSig,
-    prepareIT,
+    prepareIT, prepareMessage,
     signIT
 } from './crypto.js';
 
@@ -15,6 +15,7 @@ import { BLOCK_SIZE, ADDRESS_SIZE, FUNC_SIG_SIZE, HEX_BASE } from './crypto.js';
 import fs from 'fs';
 import crypto from 'crypto';
 import ethereumjsUtil, {hashPersonalMessage} from 'ethereumjs-util';
+import {ethers} from "ethers";
 
 function extractSignatureComponents(signatureBytes) {
     // Allocate buffers for r, s, and v
@@ -255,6 +256,32 @@ describe('Crypto Tests', () => {
             }
         });
     });
+
+    it('should prepareMessage using fixed data', async () => {
+        // Arrange
+        // Simulate the generation of random bytes
+        const plaintext = BigInt("100");
+        const userKey = 'b3c3fe73c1bb91862b166a29fe1d63e9';
+        const senderAddress ='0x8f01160c98e5cdfa625197849c85cf5fc1f76b1b';
+        const contractAddress = '0x69413851f025306dbe12c48ff2225016fc5bbe1b';
+        const funcSig = 'test(bytes)';
+        const signingKey = '0x3840f44be5805af188e9b42dda56eb99eefc88d7a6db751017ff16d0c5f8143e';
+
+        // Act
+        // Generate the signature
+        const functionSelector = getFuncSig(funcSig);
+        const {
+            message
+        } = prepareMessage(plaintext, senderAddress, userKey, contractAddress, '0x' + functionSelector.toString('hex'));
+
+        const wallet = new ethers.Wallet(signingKey);
+        const signature = await wallet.signMessage(message);
+
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+
+        assert.strictEqual(recoveredAddress.toLowerCase(), senderAddress.toLowerCase());
+    });
+
 
     // Test case for verify signature
     it('should prepare IT using fixed data', () => {
