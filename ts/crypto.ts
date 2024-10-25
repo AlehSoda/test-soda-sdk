@@ -406,3 +406,51 @@ export function aesEcbEncrypt(r: string | Uint8Array, key: Uint8Array) {
 
     return encryptedR
 }
+
+export function decryptUint(ciphertext: bigint, userKey: string): bigint {
+    // Convert ciphertext to Uint8Array
+    let ctArray = new Uint8Array()
+
+    while (ciphertext > 0) {
+        const temp = new Uint8Array([Number(ciphertext & BigInt(255))])
+        ctArray = new Uint8Array([...temp, ...ctArray])
+        ciphertext >>= BigInt(8)
+    }
+
+    ctArray = new Uint8Array([...new Uint8Array(32 - ctArray.length), ...ctArray])
+
+    // Split CT into two 128-bit arrays r and cipher
+    const cipher = ctArray.subarray(0, BLOCK_SIZE)
+    const r = ctArray.subarray(BLOCK_SIZE)
+
+    const userKeyBytes = encodeKey(userKey)
+
+    // Decrypt the cipher
+    const decryptedMessage = decrypt(userKeyBytes, r, cipher)
+
+    return decodeUint(decryptedMessage)
+}
+
+export function encodeKey(userKey: string): Uint8Array {
+    const keyBytes = new Uint8Array(16)
+
+    for (let i = 0; i < 32; i += 2) {
+        keyBytes[i / 2] = parseInt(userKey.slice(i, i + 2), HEX_BASE)
+    }
+
+    return keyBytes
+}
+
+export function decodeUint(plaintextBytes: Uint8Array): bigint {
+    const plaintext: Array<string> = []
+
+    let byte = ''
+
+    for (let i = 0; i < plaintextBytes.length; i++) {
+        byte = plaintextBytes[i].toString(HEX_BASE).padStart(2, '0') // ensure that the zero byte is represented using two digits
+
+        plaintext.push(byte)
+    }
+
+    return BigInt("0x" + plaintext.join(""))
+}

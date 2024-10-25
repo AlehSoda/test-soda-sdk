@@ -20,6 +20,9 @@ exports.getFuncSig = getFuncSig;
 exports.encodeString = encodeString;
 exports.reconstructUserKey = reconstructUserKey;
 exports.aesEcbEncrypt = aesEcbEncrypt;
+exports.decryptUint = decryptUint;
+exports.encodeKey = encodeKey;
+exports.decodeUint = decodeUint;
 const node_forge_1 = __importDefault(require("node-forge"));
 const ethers_1 = require("ethers");
 exports.BLOCK_SIZE = 16; // AES block size in bytes
@@ -352,4 +355,37 @@ function aesEcbEncrypt(r, key) {
     // Get the encrypted random value 'r' as a Buffer and ensure it's exactly 16 bytes
     const encryptedR = encodeString(cipher.output.data).slice(0, exports.BLOCK_SIZE);
     return encryptedR;
+}
+function decryptUint(ciphertext, userKey) {
+    // Convert ciphertext to Uint8Array
+    let ctArray = new Uint8Array();
+    while (ciphertext > 0) {
+        const temp = new Uint8Array([Number(ciphertext & BigInt(255))]);
+        ctArray = new Uint8Array([...temp, ...ctArray]);
+        ciphertext >>= BigInt(8);
+    }
+    ctArray = new Uint8Array([...new Uint8Array(32 - ctArray.length), ...ctArray]);
+    // Split CT into two 128-bit arrays r and cipher
+    const cipher = ctArray.subarray(0, exports.BLOCK_SIZE);
+    const r = ctArray.subarray(exports.BLOCK_SIZE);
+    const userKeyBytes = encodeKey(userKey);
+    // Decrypt the cipher
+    const decryptedMessage = decrypt(userKeyBytes, r, cipher);
+    return decodeUint(decryptedMessage);
+}
+function encodeKey(userKey) {
+    const keyBytes = new Uint8Array(16);
+    for (let i = 0; i < 32; i += 2) {
+        keyBytes[i / 2] = parseInt(userKey.slice(i, i + 2), exports.HEX_BASE);
+    }
+    return keyBytes;
+}
+function decodeUint(plaintextBytes) {
+    const plaintext = [];
+    let byte = '';
+    for (let i = 0; i < plaintextBytes.length; i++) {
+        byte = plaintextBytes[i].toString(exports.HEX_BASE).padStart(2, '0'); // ensure that the zero byte is represented using two digits
+        plaintext.push(byte);
+    }
+    return BigInt("0x" + plaintext.join(""));
 }

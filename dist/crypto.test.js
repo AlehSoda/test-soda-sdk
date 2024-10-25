@@ -267,6 +267,8 @@ describe('Crypto Tests', () => {
         // Assert
         const expectedBytes = decryptedBuffer.subarray(decryptedBuffer.length - plaintextBytes.length, decryptedBuffer.length);
         assert.deepStrictEqual(plaintextBytes.toString('hex'), Buffer.from(expectedBytes).toString('hex'));
+        const intResult = uint8ArrayToBigInt(decryptedBuffer);
+        assert.deepStrictEqual(plaintext, intResult);
     });
     // Test case for test rsa encryption scheme
     it('should encrypt and decrypt a message using RSA scheme', () => {

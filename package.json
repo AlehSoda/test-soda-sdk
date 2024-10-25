@@ -1,6 +1,6 @@
 {
   "name": "soda-js-sdk",
-  "version": "1.0.18",
+  "version": "1.0.20",
   "description": "This SDK provides functionalities for AES and RSA encryption schemes, ECDSA signature scheme and some functionalities used for working with sodalabs blockchain.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

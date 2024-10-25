@@ -146,3 +146,6 @@ export declare function reconstructUserKey(privateKey: Buffer, encryptedKeyShare
  * @throws {RangeError} - Throws if the key size is not 16 bytes.
  */
 export declare function aesEcbEncrypt(r: string | Uint8Array, key: Uint8Array): Uint8Array;
+export declare function decryptUint(ciphertext: bigint, userKey: string): bigint;
+export declare function encodeKey(userKey: string): Uint8Array;
+export declare function decodeUint(plaintextBytes: Uint8Array): bigint;
